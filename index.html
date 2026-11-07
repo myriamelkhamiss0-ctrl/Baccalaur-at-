@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roue de l'alphabet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: game-show night stage. Category card on top, segmented wheel with a red buzzer hub, players strip and controls below. Single dark look by choice. */
+:root{
+  --bg:#14112e; --bg2:#1e1946; --panel:#231d52; --line:#3a3278;
+  --ink:#ffffff; --soft:#b9b3e8; --dim:#6f68a8;
+  --s1:#ff5d73; --s2:#ffb627; --s3:#2ec4b6; --s4:#5b8cff; --s5:#b26bff; --s6:#ff8a3d;
+  --seg-ink:#1a1533; --used:#2a2458; --used-ink:#4d4689;
+  --buzz:#ff3b4f; --buzz-deep:#b5172a; --ok:#2ec4b6; --warn:#ffb627;
+  --display:"Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Nunito", system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0; color:var(--ink); font-family:var(--body);
+  background:radial-gradient(120% 70% at 50% 35%, var(--bg2) 0%, var(--bg) 70%); background-color:var(--bg);
+  padding-left:max(16px, env(safe-area-inset-left,0px)); padding-right:max(16px, env(safe-area-inset-right,0px)); padding-block:14px 24px;
+  overflow-x:hidden}
+.app{max-width:480px; margin:0 auto; display:flex; flex-direction:column; align-items:center; gap:14px}
+header{width:100%; display:flex; flex-direction:column; align-items:center; gap:10px}
+h1{margin:0; font-family:var(--display); font-weight:700; font-size:clamp(1.4rem,6.5vw,1.9rem); letter-spacing:.02em; text-align:center; text-wrap:balance}
+h1 span{color:var(--s2)}
+.cat{width:100%; display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:10px 10px 10px 16px}
+.cat-txt{flex:1; min-width:0}
+.cat-lbl{font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--soft); font-weight:800}
+.cat-val{font-family:var(--display); font-weight:600; font-size:1.2rem; line-height:1.2}
+.icon-btn{flex:none; border:none; border-radius:12px; background:var(--line); color:var(--ink); font-family:var(--display); font-weight:600; font-size:.95rem; padding:10px 14px; cursor:pointer}
+.icon-btn:focus-visible,.buzzer:focus-visible,.btn:focus-visible,.step:focus-visible{outline:3px solid var(--s2); outline-offset:3px}
+
+.wheel{position:relative; width:100%; aspect-ratio:1; max-width:100%}
+.wheel svg{display:block; width:100%; height:100%; overflow:visible}
+.seg{cursor:pointer; transition:transform .18s ease}
+.seg path{stroke:var(--bg); stroke-width:2.5; transition:fill .25s}
+.seg text{font-family:var(--display); font-weight:700; font-size:21px; fill:var(--seg-ink); text-anchor:middle; dominant-baseline:central; pointer-events:none}
+.seg.used{cursor:default}
+.seg.used path{fill:var(--used)!important}
+.seg.used text{fill:var(--used-ink)}
+.seg.sel path{stroke:var(--ink); stroke-width:4}
+.seg:focus{outline:none}
+.seg:focus-visible path{stroke:var(--ink); stroke-width:4}
+.rim{fill:none; stroke:var(--line); stroke-width:10}
+.bulb{fill:#4a4290}
+.wheel.live .bulb{animation:blink 1s infinite}
+@keyframes blink{0%,100%{fill:#4a4290}50%{fill:var(--s2)}}
+.track{fill:var(--bg); stroke:var(--line); stroke-width:9}
+.prog{fill:none; stroke:var(--ok); stroke-width:9; stroke-linecap:round; transition:stroke .2s}
+.wheel.danger .prog{stroke:var(--buzz)}
+
+.buzzer{position:absolute; left:50%; top:50%; width:34%; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%; border:none; cursor:pointer; color:#fff;
+  background:radial-gradient(circle at 35% 30%, #ff8a97 0%, var(--buzz) 45%, var(--buzz-deep) 100%);
+  box-shadow:0 7px 0 #7c0f1c, 0 12px 24px rgba(0,0,0,.45); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0;
+  transition:transform .08s, box-shadow .08s; -webkit-tap-highlight-color:transparent; padding:0}
+.buzzer:active{transform:translate(-50%,-46%); box-shadow:0 2px 0 #7c0f1c, 0 6px 12px rgba(0,0,0,.4)}
+.buzzer.go{background:radial-gradient(circle at 35% 30%, #7ff0e4 0%, var(--ok) 45%, #13867c 100%); box-shadow:0 7px 0 #0b5a53, 0 12px 24px rgba(0,0,0,.45)}
+.buzzer.go:active{box-shadow:0 2px 0 #0b5a53}
+.b-num{font-family:var(--display); font-weight:700; font-size:clamp(2rem,10vw,3rem); line-height:.95; font-variant-numeric:tabular-nums}
+.b-lbl{font-family:var(--display); font-weight:700; font-size:clamp(.85rem,3.6vw,1.05rem); letter-spacing:.14em}
+.wheel.shake .buzzer{animation:shake .3s 2}
+@keyframes shake{0%,100%{margin-left:0}25%{margin-left:-6px}75%{margin-left:6px}}
+
+.status{min-height:1.6em; font-family:var(--display); font-weight:600; font-size:1.15rem; text-align:center; text-wrap:balance}
+.status.bad{color:var(--buzz)} .status.good{color:var(--ok)} .status.win{color:var(--s2); font-size:1.35rem}
+
+.players{display:flex; flex-wrap:wrap; justify-content:center; gap:8px; width:100%}
+.chip{display:flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px; background:var(--panel); border:2px solid var(--line); font-weight:800; font-size:.92rem; color:var(--soft)}
+.chip i{width:10px; height:10px; border-radius:50%; display:block}
+.chip.turn{border-color:var(--s2); color:var(--ink); background:var(--line)}
+.chip.out{opacity:.45; text-decoration:line-through}
+
+.controls{width:100%; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px}
+.stepper{display:flex; align-items:center; gap:4px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:4px}
+.step{width:38px; height:38px; border:none; border-radius:10px; background:var(--line); color:var(--ink); font-size:1.3rem; font-weight:800; cursor:pointer}
+.step-val{min-width:92px; text-align:center; font-weight:800; font-size:.95rem; font-variant-numeric:tabular-nums}
+.btn{border:none; border-radius:14px; padding:12px 18px; font-family:var(--display); font-weight:600; font-size:1rem; cursor:pointer; background:var(--s2); color:var(--seg-ink)}
+.names{width:100%; display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px}
+.names label{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:6px 10px; min-width:0}
+.names i{width:10px; height:10px; border-radius:50%; flex:none}
+.names input{flex:1; min-width:0; background:transparent; border:none; color:var(--ink); font-family:var(--body); font-weight:700; font-size:1rem; padding:6px 0}
+.names input::placeholder{color:var(--dim)}
+.names input:focus{outline:none}
+.names label:focus-within{border-color:var(--s2)}
+.names-lbl{width:100%; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:var(--soft); font-weight:800}
+.btn.end{background:transparent; color:var(--ink); box-shadow:inset 0 0 0 2px var(--line)}
+.left{color:var(--dim); font-size:.85rem; font-weight:700; font-variant-numeric:tabular-nums}
+.rules{color:var(--soft); font-size:.88rem; text-align:center; max-width:40ch; margin:0; line-height:1.45}
+
+@media (prefers-reduced-motion:reduce){.wheel.live .bulb,.wheel.shake .buzzer{animation:none}.seg,.prog{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Roue de <span>l'alphabet</span></h1>
+    <div class="cat">
+      <div class="cat-txt">
+        <div class="cat-lbl">Catégorie</div>
+        <div class="cat-val" id="catVal">Un animal</div>
+      </div>
+      <button class="icon-btn" id="catBtn" type="button">Changer</button>
+    </div>
+  </header>
+
+  <div class="wheel" id="wheel">
+    <svg id="svg" viewBox="0 0 400 400" aria-label="Roue des lettres"></svg>
+    <button class="buzzer go" id="buzzer" type="button" aria-label="Démarrer">
+      <span class="b-num" id="bNum">GO</span>
+      <span class="b-lbl" id="bLbl">5 SEC</span>
+    </button>
+  </div>
+
+  <div class="status" id="status" aria-live="polite">Joueur 1, appuie sur GO</div>
+  <div class="players" id="players"></div>
+
+  <div class="controls">
+    <div class="stepper">
+      <button class="step" id="minus" type="button" aria-label="Un joueur de moins">−</button>
+      <div class="step-val" id="nbVal">2 joueurs</div>
+      <button class="step" id="plus" type="button" aria-label="Un joueur de plus">+</button>
+    </div>
+    <button class="btn" id="reset" type="button">Nouvelle partie</button>
+    <button class="btn end" id="end" type="button">Arrêter la partie</button>
+  </div>
+  <div class="names-lbl">Pseudos</div>
+  <div class="names" id="names"></div>
+  <div class="left" id="left">26 lettres libres</div>
+  <p class="rules">Trouve un mot de la catégorie, touche sa première lettre sur la roue, puis appuie sur STOP avant 5 secondes : +1 point, et le chrono repart pour le joueur suivant. Temps écoulé : pas de point, tu passes ton tour. La partie se termine quand les 26 lettres sont faites, ou quand vous bloquez et appuyez sur « Arrêter la partie ».</p>
+</div>
+
+<script>
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const COLORS = ["--s1","--s2","--s3","--s4","--s5","--s6"].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+const CATS = ["Un animal","Un prénom","Un pays","Un pays africain","Un pays asiatique","Un pays américain","Un pays européen","Une ville","Une capitale","Un métier","Un fruit ou légume","Un objet","Une marque","Une marque de voiture","Un rappeur ou une rappeuse","Un sport","Une célébrité","Un film ou une série","Un plat","Un moyen de transport","Une boisson"];
+const DURATION = 5000, CX = 200, CY = 200, R1 = 176, R0 = 82, N = LETTERS.length, NS = "http://www.w3.org/2000/svg";
+
+const svg = document.getElementById("svg"), wheel = document.getElementById("wheel");
+const buzzer = document.getElementById("buzzer"), bNum = document.getElementById("bNum"), bLbl = document.getElementById("bLbl");
+const statusEl = document.getElementById("status"), playersEl = document.getElementById("players"), leftEl = document.getElementById("left");
+const nbVal = document.getElementById("nbVal"), catVal = document.getElementById("catVal");
+
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function pt(r, a){ return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; }
+
+// Rim and bulbs
+el("circle", {class:"rim", cx:CX, cy:CY, r:190}, svg);
+for (let i = 0; i < N; i++){
+  const a = ((i + .5) / N) * 2 * Math.PI - Math.PI / 2, [x, y] = pt(190, a);
+  const b = el("circle", {class:"bulb", cx:x, cy:y, r:3.2}, svg);
+  b.style.animationDelay = (i % 2 ? .5 : 0) + "s";
+}
+
+// Segments
+const segs = {};
+LETTERS.forEach((L, i) => {
+  const a0 = (i / N) * 2 * Math.PI - Math.PI / 2 - Math.PI / N, a1 = a0 + 2 * Math.PI / N, am = (a0 + a1) / 2;
+  const [x0, y0] = pt(R1, a0), [x1, y1] = pt(R1, a1), [x2, y2] = pt(R0 + 12, a1), [x3, y3] = pt(R0 + 12, a0);
+  const g = el("g", {class:"seg", tabindex:"0", role:"button", "aria-label":"Lettre " + L}, svg);
+  el("path", {d:`M${x0} ${y0} A${R1} ${R1} 0 0 1 ${x1} ${y1} L${x2} ${y2} A${R0+12} ${R0+12} 0 0 0 ${x3} ${y3} Z`, fill:COLORS[i % COLORS.length]}, g);
+  const [tx, ty] = pt(150, am); const t = el("text", {x:tx, y:ty}, g); t.textContent = L;
+  g._dx = Math.cos(am) * 7; g._dy = Math.sin(am) * 7;
+  g.addEventListener("click", () => select(L));
+  g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(L); } });
+  segs[L] = g;
+});
+
+// Timer ring
+el("circle", {class:"track", cx:CX, cy:CY, r:R0}, svg);
+const prog = el("circle", {class:"prog", cx:CX, cy:CY, r:R0, transform:`rotate(-90 ${CX} ${CY})`}, svg);
+const C = 2 * Math.PI * R0; prog.style.strokeDasharray = C;
+
+const PCOL = ["--s1","--s3","--s2","--s4","--s5","--s6"].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+let nbPlayers = 2, players = [], turn = 0, used = new Set(), selected = null, phase = "idle", endAt = 0, raf = 0, lastSec = 6, audio = null, catIdx = 0;
+
+function beep(f, d, type = "sine", v = .18){
+  try{
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.value = f; g.gain.value = v;
+    o.connect(g); g.connect(audio.destination);
+    g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + d);
+    o.start(); o.stop(audio.currentTime + d);
+  }catch(e){}
+}
+
+function setStatus(t, cls = ""){ statusEl.textContent = t; statusEl.className = "status " + cls; }
+let pseudos = [];
+try { pseudos = JSON.parse(localStorage.getItem("roue-pseudos") || "[]") || []; } catch(e) { pseudos = []; }
+function name(i){ return pseudos[i] || (nbPlayers === 1 ? "Toi" : "Joueur " + (i + 1)); }
+function renderNames(){
+  const box = document.getElementById("names"); box.innerHTML = "";
+  for (let i = 0; i < nbPlayers; i++){
+    const l = document.createElement("label");
+    l.innerHTML = '<i style="background:' + PCOL[i] + '"></i>';
+    const inp = document.createElement("input");
+    inp.id = "pseudo-" + i; inp.maxLength = 14; inp.autocomplete = "off";
+    inp.placeholder = nbPlayers === 1 ? "Ton pseudo" : "Joueur " + (i + 1); inp.value = pseudos[i] || "";
+    inp.setAttribute("aria-label", "Pseudo du joueur " + (i + 1));
+    inp.addEventListener("input", () => {
+      pseudos[i] = inp.value.trim();
+      try { localStorage.setItem("roue-pseudos", JSON.stringify(pseudos)); } catch(e) {}
+      renderPlayers();
+      if (phase === "idle" && used.size === 0) setStatus(name(turn) + ", appuie sur GO");
+    });
+    l.appendChild(inp); box.appendChild(l);
+  }
+}
+
+function renderPlayers(){
+  playersEl.innerHTML = "";
+  if (nbPlayers === 1){ playersEl.innerHTML = '<div class="chip turn"><i style="background:'+PCOL[0]+'"></i></div>'; playersEl.firstChild.append(name(0) + ' · ' + used.size + ' lettre' + (used.size > 1 ? 's' : '')); return; }
+  players.forEach((p, i) => {
+    const c = document.createElement("div");
+    c.className = "chip" + (i === turn && phase !== "done" ? " turn" : "") + (p.out ? " out" : "");
+    c.innerHTML = '<i style="background:' + PCOL[i] + '"></i>';
+    c.append(name(i) + " · " + (p.pts || 0) + " pt" + ((p.pts || 0) > 1 ? "s" : ""));
+    playersEl.appendChild(c);
+  });
+}
+
+function renderLeft(){ const n = N - used.size; leftEl.textContent = n + (n > 1 ? " lettres libres" : " lettre libre"); }
+
+function setBuzzer(mode, num, lbl){
+  buzzer.classList.toggle("go", mode === "go");
+  bNum.textContent = num; bLbl.textContent = lbl;
+  buzzer.setAttribute("aria-label", mode === "go" ? "Démarrer" : "Stop, valider la lettre");
+}
+
+function drawRing(rem){
+  prog.style.strokeDashoffset = C * (1 - Math.max(0, rem) / DURATION);
+  wheel.classList.toggle("danger", phase === "running" && rem <= 2000);
+}
+
+function clearSel(){ if (selected && segs[selected]) { segs[selected].classList.remove("sel"); segs[selected].style.transform = ""; } selected = null; }
+
+function select(L){
+  if (used.has(L) || phase === "done") return;
+  if (phase !== "running"){ setStatus("Appuie d'abord sur GO", "bad"); return; }
+  clearSel(); selected = L;
+  const g = segs[L]; g.classList.add("sel"); g.style.transform = `translate(${g._dx}px, ${g._dy}px)`;
+  setBuzzer("stop", Math.max(1, Math.ceil((endAt - performance.now()) / 1000)), "STOP");
+  setStatus("Lettre " + L + " : appuie sur STOP !");
+  beep(700, .05, "triangle", .12);
+}
+
+function startTurn(){
+  phase = "running"; wheel.classList.add("live"); clearSel();
+  endAt = performance.now() + DURATION; lastSec = 6;
+  setBuzzer("stop", 5, "STOP");
+  setStatus(name(turn) + " : choisis ta lettre !");
+  renderPlayers(); cancelAnimationFrame(raf); tick(); beep(520, .1);
+}
+
+function tick(){
+  const rem = endAt - performance.now();
+  if (rem <= 0){ timeUp(); return; }
+  const s = Math.ceil(rem / 1000);
+  if (s !== lastSec){ lastSec = s; bNum.textContent = s; if (s <= 3) beep(s === 1 ? 1040 : 880, .07, "square", .08); }
+  drawRing(rem);
+  raf = requestAnimationFrame(tick);
+}
+
+function nextAlive(from){
+  for (let k = 1; k <= players.length; k++){ const i = (from + k) % players.length; if (!players[i].out) return i; }
+  return from;
+}
+
+function stopPress(){
+  if (!selected){ setStatus("Touche une lettre sur la roue avant STOP", "bad"); wheel.classList.remove("shake"); void wheel.offsetWidth; wheel.classList.add("shake"); beep(220, .12, "square", .1); return; }
+  const L = selected; clearSel(); used.add(L); const g = segs[L]; g.classList.add("used"); g.setAttribute("aria-disabled", "true");
+  players[turn].pts = (players[turn].pts || 0) + 1;
+  renderLeft(); beep(660, .08, "triangle"); setTimeout(() => beep(990, .12, "triangle"), 80);
+  if (used.size === N){ if (nbPlayers === 1) finish("Les 26 lettres, bravo !"); else endGame(); return; }
+  if (nbPlayers > 1) turn = nextAlive(turn);
+  startTurn();
+  setStatus("Validé " + L + " · " + name(turn) + ", à toi !", "good");
+}
+
+function timeUp(){
+  cancelAnimationFrame(raf); clearSel(); drawRing(0); wheel.classList.remove("live");
+  wheel.classList.remove("shake"); void wheel.offsetWidth; wheel.classList.add("shake");
+  beep(160, .7, "sawtooth", .22);
+  players[turn].miss = (players[turn].miss || 0) + 1;
+  const who = name(turn); if (nbPlayers > 1) turn = nextAlive(turn);
+  phase = "idle"; setBuzzer("go", "GO", "5 SEC"); drawRing(DURATION); wheel.classList.remove("danger");
+  setStatus("Temps écoulé pour " + who + " · " + name(turn) + ", appuie sur GO", "bad"); renderPlayers();
+}
+
+function endGame(){
+  if (phase === "done") return;
+  if (nbPlayers === 1){ finish("Partie arrêtée · " + used.size + " lettre" + (used.size > 1 ? "s" : "") + " trouvée" + (used.size > 1 ? "s" : "")); return; }
+  const best = Math.max(...players.map(p => p.pts || 0));
+  const winners = players.map((p, i) => i).filter(i => (players[i].pts || 0) === best);
+  finish(best === 0 ? "Partie arrêtée · personne n'a marqué" : winners.length > 1 ? "Égalité entre " + winners.map(name).join(" et ") + " !" : name(winners[0]) + " gagne avec " + best + " lettre" + (best > 1 ? "s" : "") + " !");
+}
+
+function finish(msg, cls = "win"){
+  phase = "done"; cancelAnimationFrame(raf); clearSel(); wheel.classList.remove("live", "danger");
+  setBuzzer("go", "↺", "REJOUER"); drawRing(DURATION); setStatus(msg, cls); renderPlayers();
+  if (cls === "win"){ [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => beep(f, .18, "triangle"), i * 120)); }
+}
+
+function newGame(){
+  cancelAnimationFrame(raf); phase = "idle"; used.clear(); clearSel(); turn = 0;
+  players = Array.from({length: nbPlayers}, () => ({out:false, pts:0}));
+  LETTERS.forEach(L => { segs[L].classList.remove("used"); segs[L].removeAttribute("aria-disabled"); });
+  wheel.classList.remove("live", "danger", "shake");
+  nbVal.textContent = nbPlayers + (nbPlayers > 1 ? " joueurs" : " joueur");
+  setBuzzer("go", "GO", "5 SEC"); drawRing(DURATION); renderLeft(); renderPlayers(); renderNames();
+  setStatus(name(0) + ", appuie sur GO");
+}
+
+buzzer.addEventListener("click", () => {
+  if (phase === "running") stopPress();
+  else if (phase === "done") newGame();
+  else startTurn();
+});
+document.getElementById("reset").addEventListener("click", newGame);
+document.getElementById("end").addEventListener("click", endGame);
+document.getElementById("minus").addEventListener("click", () => { if (nbPlayers > 1){ nbPlayers--; newGame(); } });
+document.getElementById("plus").addEventListener("click", () => { if (nbPlayers < 6){ nbPlayers++; newGame(); } });
+document.getElementById("catBtn").addEventListener("click", () => {
+  let n; do { n = Math.floor(Math.random() * CATS.length); } while (n === catIdx);
+  catIdx = n; catVal.textContent = CATS[n];
+});
+newGame();
+</script>
+</body>
+</html>
